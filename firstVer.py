@@ -38,8 +38,18 @@ PROMPT = PromptTemplate(
 )
 
 import langchain_experimental.rl_chain as rl_chain
+import time
+scoring_criteria_template = (
+    "Given {preference} rank how good or bad this selection is {game}"
+)
 
-chain = rl_chain.PickBest.from_llm(llm=llm,prompt=PROMPT)
+chain = rl_chain.PickBest.from_llm(
+    llm=llm,
+    prompt=PROMPT,
+    selection_scorer=rl_chain.AutoSelectionScorer(
+        llm=llm, scoring_criteria_template_str=scoring_criteria_template
+    ),
+)
 
 for _ in range(5):
     try:
@@ -50,7 +60,40 @@ for _ in range(5):
             text_to_personalize="This is the weeks specialty game, we \
                 believe you will love it!",
         )
+        time.sleep(10)
     except Exception as e:
         print(e)
     print(response["response"])
+    selection_metadata=response["selection_metadata"]
+    print(
+        f"selected index: {selection_metadata.selected.index}, score: {selection_metadata.selected.score}"
+    )
     print()
+
+
+# class CustomSelectionScorer(rl_chain.SelectionScorer):
+#     def score_response(
+#         self, inputs, llm_response: str, event: rl_chain.PickBestEvent
+#     ) -> float:
+#         print(event.based_on)
+#         print(event.to_select_from)
+
+#         # you can build a complex scoring function here
+#         # it is preferable that the score ranges between 0 and 1 but it is not enforced
+
+#         selected_meal = event.to_select_from["meal"][event.selected.index]
+#         print(f"selected meal: {selected_meal}")
+
+#         if "Tom" in event.based_on["user"]:
+#             if "Vegetarian" in event.based_on["preference"]:
+#                 if "Chicken" in selected_meal or "Beef" in selected_meal:
+#                     return 0.0
+#                 else:
+#                     return 1.0
+#             else:
+#                 if "Chicken" in selected_meal or "Beef" in selected_meal:
+#                     return 1.0
+#                 else:
+#                     return 0.0
+#         else:
+#             raise NotImplementedError("I don't know how to score this user")
